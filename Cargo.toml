@@ -1,12 +1,12 @@
 [package]
-name = "odin-ssg"
+name = "khoahoc-rs"
 version = "0.1.0"
 edition = "2021"
 description = "A static site generator for Odin-style Markdown curriculum folders"
-authors = ["odin-ssg contributors"]
+authors = ["không phải duykhanh471"]
 
 [[bin]]
-name = "odin-ssg"
+name = "khoahoc-rs"
 path = "src/main.rs"
 
 [dependencies]

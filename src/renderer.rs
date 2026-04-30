@@ -44,7 +44,19 @@ pub fn render_site(
     // Copy static assets
     let static_src = templates_dir.join("static");
     if static_src.exists() {
-        copy_dir_all(&static_src, &out_dir.join("static"))?;
+        let static_dst = out_dir.join("static");
+        copy_dir_all(&static_src, &static_dst)?;
+
+        // Inject theme CSS into style.css
+        let style_css_path = static_dst.join("style.css");
+        if style_css_path.exists() {
+            let original_css = std::fs::read_to_string(&style_css_path)
+                .with_context(|| format!("Failed to read {}", style_css_path.display()))?;
+            let theme_css = curriculum.theme.to_css();
+            let new_css = format!("{}\n\n/* --- Theme Variables --- */\n{}", original_css, theme_css);
+            std::fs::write(&style_css_path, new_css)
+                .with_context(|| format!("Failed to write {}", style_css_path.display()))?;
+        }
     }
 
     // Write search index

@@ -16,6 +16,7 @@ use std::path::PathBuf;
 pub struct Curriculum {
     pub title: String,
     pub description: String,
+    pub theme: Theme,
     /// All learning paths, ordered by `position`.
     pub paths: Vec<Path>,
 }
@@ -165,3 +166,43 @@ pub struct SearchEntry {
     /// First ~200 chars of plain-text content for snippets.
     pub excerpt: String,
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Theme Management
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Theme {
+    pub bg: String,
+    pub text: String,
+    pub accent: String,
+    pub border: String,
+    #[serde(default = "default_accent_text")]
+    pub accent_text: String,
+}
+
+fn default_accent_text() -> String {
+    "#ffffff".to_string()
+}
+
+impl Theme {
+    /// The default "Biophilic" theme preset.
+    pub fn biophilic() -> Self {
+        Self {
+            bg: "#f9fbf9".to_string(),
+            text: "#1a2e1a".to_string(),
+            accent: "#4a7c44".to_string(),
+            border: "#d1dbd1".to_string(),
+            accent_text: "#ffffff".to_string(),
+        }
+    }
+
+    /// Generate a :root CSS string containing these colors as variables.
+    pub fn to_css(&self) -> String {
+        format!(
+            ":root {{\n  --bg: {};\n  --text: {};\n  --accent: {};\n  --border: {};\n  --accent-text: {};\n}}\n",
+            self.bg, self.text, self.accent, self.border, self.accent_text
+        )
+    }
+}
+

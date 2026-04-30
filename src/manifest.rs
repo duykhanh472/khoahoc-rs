@@ -26,6 +26,7 @@
 ///             is_project: false
 /// ```
 use serde::{Deserialize, Serialize};
+use crate::models::Theme;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Path manifest  (root of each path directory)
@@ -93,4 +94,8 @@ pub struct CurriculumManifest {
     pub description: String,
     /// Ordered list of path directory names to include.
     pub paths: Vec<String>,
+    #[serde(default)]
+    pub custom_colors: Option<Theme>,
+    #[serde(default)]
+    pub theme_preset: Option<String>,
 }

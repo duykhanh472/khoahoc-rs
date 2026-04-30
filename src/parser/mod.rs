@@ -13,7 +13,7 @@ pub mod navigation;
 
 use crate::manifest::{CurriculumManifest, PathManifest};
 use crate::models::{
-    Breadcrumb, Course, Curriculum, Lesson, Path, SearchEntry, Section,
+    Breadcrumb, Course, Curriculum, Lesson, Path, SearchEntry, Section, Theme,
 };
 use anyhow::{Context, Result};
 use std::path::PathBuf;
@@ -51,9 +51,13 @@ pub fn parse(source_root: &std::path::Path) -> Result<(Curriculum, Vec<SearchEnt
     // 4. Build search index
     let search_entries = build_search_index(&paths);
 
+    // 5. Theme resolution
+    let theme = resolve_theme(source_root, &root_manifest);
+
     let curriculum = Curriculum {
         title: root_manifest.title,
         description: root_manifest.description,
+        theme,
         paths,
     };
 
@@ -279,6 +283,29 @@ pub fn read_yaml<T: serde::de::DeserializeOwned>(path: &std::path::Path) -> Resu
         .with_context(|| format!("Cannot read {}", path.display()))?;
     serde_yaml::from_str(&content)
         .with_context(|| format!("Cannot parse YAML in {}", path.display()))
+}
+
+/// Resolve the theme based on priority logic.
+fn resolve_theme(source_root: &std::path::Path, manifest: &CurriculumManifest) -> Theme {
+    // 1. Priority: custom_colors in manifest
+    if let Some(custom) = &manifest.custom_colors {
+        return custom.clone();
+    }
+
+    // 2. Priority: theme_preset in manifest (looked up in themes.yml)
+    if let Some(preset_name) = &manifest.theme_preset {
+        let themes_path = source_root.join("themes.yml");
+        if themes_path.exists() {
+            if let Ok(themes_map) = read_yaml::<std::collections::HashMap<String, Theme>>(&themes_path) {
+                if let Some(theme) = themes_map.get(preset_name) {
+                    return theme.clone();
+                }
+            }
+        }
+    }
+
+    // 3. Fallback: Built-in Biophilic preset
+    Theme::biophilic()
 }
 
 /// Convert a slug back to a readable title (best-effort).

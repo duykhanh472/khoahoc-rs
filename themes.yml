@@ -1,0 +1,20 @@
+nord:
+  bg: "#2e3440"
+  text: "#eceff4"
+  accent: "#88c0d0"
+  border: "#4c566a"
+  accent_text: "#2e3440"
+
+midnight:
+  bg: "#0f172a"
+  text: "#f8fafc"
+  accent: "#38bdf8"
+  border: "#1e293b"
+  accent_text: "#ffffff"
+
+sunset:
+  bg: "#fff7ed"
+  text: "#431407"
+  accent: "#ea580c"
+  border: "#ffedd5"
+  accent_text: "#ffffff"

@@ -43,7 +43,7 @@ ruby scripts/generate_manifests.rb
 Generate the full curriculum into the `out/` directory:
 
 ```bash
-cargo run -- build --source ../curriculum-main --out ./out --templates ./templates
+cargo run -- build --source curriculum-main --out ./out --templates templates
 ```
 
 ### 3. Run the Dev Server
@@ -51,7 +51,7 @@ cargo run -- build --source ../curriculum-main --out ./out --templates ./templat
 Launch the local server with auto-rebuild:
 
 ```bash
-cargo run -- serve --source ../curriculum-main --out ./out --port 8080
+cargo run -- serve --source curriculum-main --out out --port 8080
 ```
 
 Visit `http://localhost:8080` in your browser.
