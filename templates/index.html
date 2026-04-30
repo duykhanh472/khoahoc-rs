@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}{{ curriculum.title }}{% endblock %}
+{% block description %}{{ curriculum.description }}{% endblock %}
+
+{% block content %}
+<div class="hero">
+  <div class="hero-content">
+    <h1 class="hero-title">{{ curriculum.title }}</h1>
+    <p class="hero-description">{{ curriculum.description }}</p>
+  </div>
+  <div class="hero-decoration" aria-hidden="true">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+  </div>
+</div>
+
+<section class="paths-section" aria-labelledby="paths-heading">
+  <div class="container">
+    <h2 id="paths-heading" class="section-title">Learning Paths</h2>
+    <p class="section-subtitle">Choose your path and start building real skills.</p>
+
+    <div class="path-grid">
+      {% for path in curriculum.paths %}
+      <article class="path-card" aria-label="{{ path.title }}">
+        <a href="{{ path.url }}" class="path-card-link">
+          <div class="path-card-header">
+            <div class="path-icon" aria-hidden="true">
+              {{ loop.index }}
+            </div>
+            <div class="path-meta">
+              <span class="path-badge">
+                {{ path.courses | length }} course{% if path.courses | length != 1 %}s{% endif %}
+              </span>
+            </div>
+          </div>
+          <h3 class="path-card-title">{{ path.title }}</h3>
+          <p class="path-card-description">{{ path.description }}</p>
+          <div class="path-card-courses">
+            {% for course in path.courses | slice(end=3) %}
+            <span class="course-chip">{{ course.title }}</span>
+            {% endfor %}
+            {% if path.courses | length > 3 %}
+            <span class="course-chip course-chip--more">
+              +{{ path.courses | length - 3 }} more
+            </span>
+            {% endif %}
+          </div>
+          <span class="path-card-cta">
+            Start path
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          </span>
+        </a>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

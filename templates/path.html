@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}{{ path.title }} — {{ curriculum.title }}{% endblock %}
+{% block description %}{{ path.description }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <ol>
+        <li><a href="/">{{ curriculum.title }}</a></li>
+        <li aria-current="page">{{ path.title }}</li>
+      </ol>
+    </nav>
+    <h1 class="page-title">{{ path.title }}</h1>
+    <p class="page-description">{{ path.description }}</p>
+  </div>
+</div>
+
+<div class="container page-content">
+  <div class="course-grid">
+    {% for course in path.courses %}
+    <article class="course-card">
+      <a href="{{ course.url }}" class="course-card-link">
+        {% if course.badge_uri %}
+        <img src="/static/badges/{{ course.badge_uri }}" alt="{{ course.title }} badge" class="course-badge" loading="lazy">
+        {% else %}
+        <div class="course-badge-placeholder" aria-hidden="true">
+          <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="40" height="40" rx="8" fill="url(#course-grad-{{ loop.index }})"/>
+            <text x="20" y="26" text-anchor="middle" fill="white" font-size="16" font-weight="600">{{ loop.index }}</text>
+            <defs>
+              <linearGradient id="course-grad-{{ loop.index }}" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#6366f1"/><stop offset="1" stop-color="#a855f7"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        {% endif %}
+        <div class="course-card-body">
+          <h2 class="course-card-title">{{ course.title }}</h2>
+          <p class="course-card-description">{{ course.description }}</p>
+          <div class="course-stats">
+            <span class="stat">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+              </svg>
+              {{ course.sections | length }} section{% if course.sections | length != 1 %}s{% endif %}
+            </span>
+          </div>
+        </div>
+        <span class="card-cta">View course →</span>
+      </a>
+    </article>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

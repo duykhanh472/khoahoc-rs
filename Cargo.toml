@@ -1,0 +1,52 @@
+[package]
+name = "odin-ssg"
+version = "0.1.0"
+edition = "2021"
+description = "A static site generator for Odin-style Markdown curriculum folders"
+authors = ["odin-ssg contributors"]
+
+[[bin]]
+name = "odin-ssg"
+path = "src/main.rs"
+
+[dependencies]
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# Serialisation
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
+serde_json = "1"
+
+# Markdown
+pulldown-cmark = { version = "0.11", features = ["html"] }
+
+# Templating
+tera = "1"
+
+# Directory walking
+walkdir = "2"
+
+# Slug / URL helpers
+slug = "0.1"
+
+# Error handling
+anyhow = "1"
+thiserror = "1"
+
+# Parallelism
+rayon = "1"
+
+# Dev server
+tiny_http = "0.12"
+
+# File watching (serve --watch)
+notify = { version = "6", features = ["macos_kqueue"] }
+
+# Misc
+chrono = { version = "0.4", features = ["serde"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
