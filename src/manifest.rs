@@ -99,3 +99,84 @@ pub struct CurriculumManifest {
     #[serde(default)]
     pub theme_preset: Option<String>,
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NEW: Nested single-manifest format (nav-based structure)
+// ─────────────────────────────────────────────────────────────────────────────
+// Example:
+// ```yaml
+// nav:
+//   - ruby:
+//       title: Ruby
+//       description: The Ruby language from fundamentals to object-oriented design.
+//       courses:
+//       - introduction:
+//           title: Introduction
+//           description: ''
+//           sections:
+//           - lessons:
+//               title: Lessons
+//               lessons:
+//               - 'How This Course Will Work': 01_how_this_course_will_work.md
+//               - 'Installing Ruby':
+//                   file: 02_installing_ruby.md
+//                   is_project: true
+// ```
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NestedCurriculumManifest {
+    pub title: String,
+    pub description: String,
+    pub nav: Vec<std::collections::BTreeMap<String, NestedPathData>>,
+    #[serde(default)]
+    pub custom_colors: Option<Theme>,
+    #[serde(default)]
+    pub theme_preset: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NestedPathData {
+    pub title: String,
+    pub description: String,
+    pub courses: Vec<std::collections::BTreeMap<String, NestedCourseData>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NestedCourseData {
+    pub title: String,
+    #[serde(default)]
+    pub description: String,
+    pub sections: Vec<NestedSectionData>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NestedSectionData {
+    pub title: String,
+    #[serde(default)]
+    pub description: String,
+    pub lessons: std::collections::BTreeMap<String, NestedLessonValue>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum NestedLessonValue {
+    /// Simple filename string
+    File(String),
+    /// Filename with metadata
+    WithMeta {
+        #[serde(rename = "file")]
+        file: String,
+        #[serde(default)]
+        is_project: bool,
+    },
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Simple manifest format (for generation input: just list of paths)
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SimpleManifest {
+    /// Simple list of path slugs to scan and generate
+    pub paths: Vec<String>,
+}

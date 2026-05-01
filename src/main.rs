@@ -1,13 +1,15 @@
 /// odin-ssg — Odin-style Curriculum Static Site Generator
 ///
 /// Commands:
-///   build  --source <path> --out <path> [--templates <path>]
-///   serve  --source <path> --out <path> --port <u16> [--templates <path>]
+///   build                --source <path> --out <path> [--templates <path>]
+///   serve                --source <path> --out <path> --port <u16> [--templates <path>]
+///   generate-full-manifest  --source <path> [--output <path>]
 mod manifest;
 mod models;
 mod parser;
 mod renderer;
 mod server;
+mod generator;
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
@@ -64,6 +66,18 @@ enum Commands {
         #[arg(short, long, value_name = "PATH")]
         templates: Option<PathBuf>,
     },
+
+    /// Generate full nested manifest.yaml from a simple paths list.
+    /// Scans directory structure and creates manifest.yaml ready for manual editing.
+    GenerateFullManifest {
+        /// Path to curriculum root directory.
+        #[arg(short, long, value_name = "PATH")]
+        source: PathBuf,
+
+        /// Output path for the generated manifest (default: manifest.yaml).
+        #[arg(short, long, value_name = "PATH")]
+        output: Option<PathBuf>,
+    },
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -109,6 +123,15 @@ fn main() -> Result<()> {
             server::serve(&source, &out, port, move || {
                 run_build(&source_clone, &out_clone, &templates_clone)
             })?;
+        }
+
+        Commands::GenerateFullManifest { source, output } => {
+            let output_path = output.unwrap_or_else(|| source.join("manifest.yaml"));
+            generator::generate_full_manifest(&source, &output_path)?;
+            println!(
+                "✅  Generated full manifest → {}",
+                output_path.display()
+            );
         }
     }
 

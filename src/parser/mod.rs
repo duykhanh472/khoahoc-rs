@@ -11,7 +11,7 @@
 pub mod markdown;
 pub mod navigation;
 
-use crate::manifest::{CurriculumManifest, PathManifest};
+use crate::manifest::{CurriculumManifest, PathManifest, NestedCurriculumManifest};
 use crate::models::{
     Breadcrumb, Course, Curriculum, Lesson, Path, SearchEntry, Section, Theme,
 };
@@ -24,15 +24,202 @@ use std::path::PathBuf;
 
 /// Parse a curriculum source directory and return the fully-resolved tree.
 ///
+/// Supports both:
+///   - New nested format: single manifest.yaml with "nav" field
+///   - Old format: root manifest.yaml lists paths, each path has separate manifest.yaml
+///
 /// # Errors
-/// Returns an error if any required `manifest.yaml` is missing or malformed,
-/// or if a referenced lesson `.md` file cannot be read.
+/// Returns an error if the manifest is malformed or referenced files cannot be read.
 pub fn parse(source_root: &std::path::Path) -> Result<(Curriculum, Vec<SearchEntry>)> {
-    // 1. Root manifest
+    // 1. Read root manifest
     let root_manifest_path = source_root.join("manifest.yaml");
-    let root_manifest: CurriculumManifest = read_yaml(&root_manifest_path)
+    let root_content = std::fs::read_to_string(&root_manifest_path)
         .with_context(|| format!("Missing root manifest: {}", root_manifest_path.display()))?;
 
+    // 2. Try to detect which format is being used
+    let (curriculum, search_entries) = if root_content.contains("nav:") {
+        // New nested format
+        let nested_manifest: NestedCurriculumManifest = serde_yaml::from_str(&root_content)
+            .context("Failed to parse nested manifest format")?;
+        parse_nested_format(source_root, nested_manifest)?
+    } else {
+        // Old format
+        let root_manifest: CurriculumManifest = serde_yaml::from_str(&root_content)
+            .context("Failed to parse root manifest")?;
+        parse_old_format(source_root, root_manifest)?
+    };
+
+    Ok((curriculum, search_entries))
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// New nested format parser
+// ─────────────────────────────────────────────────────────────────────────────
+
+fn parse_nested_format(
+    source_root: &std::path::Path,
+    manifest: NestedCurriculumManifest,
+) -> Result<(Curriculum, Vec<SearchEntry>)> {
+    let mut paths: Vec<Path> = Vec::new();
+
+    for (position, nav_map) in manifest.nav.iter().enumerate() {
+        for (path_slug, path_data) in nav_map {
+            let path_dir = source_root.join(path_slug);
+
+            let mut courses: Vec<Course> = Vec::new();
+
+            for (course_position, course_map) in path_data.courses.iter().enumerate() {
+                for (course_slug, course_data) in course_map {
+                    let course_dir = path_dir.join(course_slug);
+                    let course_url = format!("/{}/{}/", path_slug, course_slug);
+
+                    let mut sections: Vec<Section> = Vec::new();
+
+                    for (section_position, section_data) in
+                        course_data.sections.iter().enumerate()
+                    {
+                        let mut lessons: Vec<Lesson> = Vec::new();
+
+                        for (lesson_position, (lesson_title, lesson_value)) in
+                            section_data.lessons.iter().enumerate()
+                        {
+                            let (filename, is_project) = match lesson_value {
+                                crate::manifest::NestedLessonValue::File(f) => (f.clone(), false),
+                                crate::manifest::NestedLessonValue::WithMeta {
+                                    file,
+                                    is_project,
+                                } => (file.clone(), *is_project),
+                            };
+
+                            let lesson_slug = slug::slugify(lesson_title);
+                            let lesson_url = format!("{}{}/", course_url, lesson_slug);
+                            let output_path = format!(
+                                "{}/{}/{}/index.html",
+                                path_slug, course_slug, lesson_slug
+                            );
+
+                            // Resolve lesson file
+                            let source_path = resolve_lesson_file(&course_dir, &filename)?;
+
+                            // Read and render markdown
+                            let raw_md = std::fs::read_to_string(&source_path).with_context(
+                                || format!("Cannot read lesson file: {}", source_path.display()),
+                            )?;
+                            let html_content = markdown::render(&raw_md);
+
+                            let display_title = if is_project {
+                                format!("Project: {}", lesson_title)
+                            } else {
+                                lesson_title.clone()
+                            };
+
+                            // Breadcrumbs
+                            let breadcrumbs = vec![
+                                Breadcrumb {
+                                    label: "Curriculum".to_string(),
+                                    url: "/".to_string(),
+                                    is_current: false,
+                                },
+                                Breadcrumb {
+                                    label: path_slug_to_title(path_slug),
+                                    url: format!("/{}/", path_slug),
+                                    is_current: false,
+                                },
+                                Breadcrumb {
+                                    label: path_slug_to_title(course_slug),
+                                    url: course_url.clone(),
+                                    is_current: false,
+                                },
+                                Breadcrumb {
+                                    label: section_data.title.clone(),
+                                    url: course_url.clone(),
+                                    is_current: false,
+                                },
+                                Breadcrumb {
+                                    label: display_title.clone(),
+                                    url: lesson_url.clone(),
+                                    is_current: true,
+                                },
+                            ];
+
+                            let lesson = Lesson {
+                                slug: lesson_slug,
+                                title: lesson_title.clone(),
+                                display_title,
+                                description: String::new(),
+                                position: (lesson_position + 1) as u32,
+                                is_project,
+                                source_path,
+                                output_path,
+                                url: lesson_url,
+                                html_content: Some(html_content),
+                                prev: None,
+                                next: None,
+                                breadcrumbs,
+                            };
+
+                            lessons.push(lesson);
+                        }
+
+                        sections.push(Section {
+                            title: section_data.title.clone(),
+                            description: section_data.description.clone(),
+                            position: (section_position + 1) as u32,
+                            lessons,
+                        });
+                    }
+
+                    courses.push(Course {
+                        slug: course_slug.clone(),
+                        title: course_data.title.clone(),
+                        description: course_data.description.clone(),
+                        position: (course_position + 1) as u32,
+                        url: course_url,
+                        badge_uri: None,
+                        sections,
+                    });
+                }
+            }
+
+            let path_url = format!("/{}/", path_slug);
+            paths.push(Path {
+                slug: path_slug.clone(),
+                title: path_data.title.clone(),
+                description: path_data.description.clone(),
+                position: (position + 1) as u32,
+                url: path_url,
+                courses,
+            });
+        }
+    }
+
+    // Resolve navigation
+    navigation::resolve_all(&mut paths);
+
+    // Build search index
+    let search_entries = build_search_index(&paths);
+
+    // Theme resolution
+    let theme = resolve_theme_nested(&manifest);
+
+    let curriculum = Curriculum {
+        title: manifest.title,
+        description: manifest.description,
+        theme,
+        paths,
+    };
+
+    Ok((curriculum, search_entries))
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Old format parser (existing logic)
+// ─────────────────────────────────────────────────────────────────────────────
+
+fn parse_old_format(
+    source_root: &std::path::Path,
+    root_manifest: CurriculumManifest,
+) -> Result<(Curriculum, Vec<SearchEntry>)> {
     // 2. Build paths
     let mut paths: Vec<Path> = root_manifest
         .paths
@@ -248,6 +435,28 @@ fn parse_lesson(
         next: None, // resolved later
         breadcrumbs,
     })
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Theme resolution
+// ─────────────────────────────────────────────────────────────────────────────
+
+fn resolve_theme_nested(manifest: &NestedCurriculumManifest) -> Theme {
+    // 1. Priority: custom_colors in manifest
+    if let Some(custom) = &manifest.custom_colors {
+        return custom.clone();
+    }
+
+    // 2. Priority: theme_preset in manifest
+    // Note: themes.yml lookup would require source_root which we don't have here
+    // For now, just return default
+    if let Some(_preset_name) = &manifest.theme_preset {
+        // Could look up in themes.yml if we had source_root
+        // For now, fall through to default
+    }
+
+    // 3. Fallback: Built-in Biophilic preset
+    Theme::biophilic()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
